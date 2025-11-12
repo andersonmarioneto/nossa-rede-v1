@@ -34,7 +34,7 @@ export default function About() {
         <h2 className="my-4 text-center text-zinc-500 text-lg">
           <strong>Nossa<span className="text-zinc-800">.Rede</span></strong>
         </h2>
-        <p className="mb-6 text-center text-base text-[#4c9a8d]">É o espaço onde você e sua você e seus amigos se conectam. Troque mensagens, compartilhe ideias e colabore de forma intuitiva, segura e divertida.
+        <p className="mb-6 text-center text-base text-[#4c9a8d]">É o espaço onde você e seus amigos se conectam. Troque mensagens, compartilhe ideias e colabore de forma intuitiva, segura e divertida.
         </p>
 
         {/* EQUIPE */}
