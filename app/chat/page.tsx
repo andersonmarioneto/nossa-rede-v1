@@ -14,7 +14,7 @@ export default function ChatPrivace() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#f8fcfb] p-4 pb-2 border-b border-[#e7f3f1]">
         <div className="flex items-center justify-between">
-          <a
+          <Link
             href="/"
             className="text-[#0d1b19] flex shrink-0 items-center justify-center rounded-full h-10 w-10 bg-transparent transition-all duration-200 hover:bg-[#13ecc8] hover:shadow-md"
             aria-label="Voltar para conversas"
@@ -28,7 +28,7 @@ export default function ChatPrivace() {
             >
               <path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z" />
             </svg>
-          </a>
+          </Link>
           <Link href="/profile-friend">
             <h2 className="text-[#0d1b19] text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">
               Lucas

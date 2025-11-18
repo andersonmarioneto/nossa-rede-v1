@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+
 const chats = [
   { name: "Sofia Mendes", lastMessage: "Vou chegar em 5 minutos", time: "10:30" },
   { name: "Grupo de Trabalho", lastMessage: "Obrigado!", time: "10:20" },
