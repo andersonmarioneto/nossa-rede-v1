@@ -38,28 +38,59 @@ function ChatContent() {
   const [loading, setLoading] = useState(true);
   const [conversation, setConversation] = useState<Conversation | null>(null);
 
-  useEffect(() => {
-    if (!conversationId) return;
+  const userIdParam = searchParams.get("userId");
 
+  useEffect(() => {
     async function loadData() {
       try {
         const meData = await apiFetch("/auth/me");
+        const myId = meData.data.user.id;
         setCurrentUser(meData.data.user);
 
-        const [msgData, convoData] = await Promise.all([
-          apiFetch(`/messages/${conversationId}`),
-          apiFetch(`/conversations/${conversationId}`)
-        ]);
+        let targetConversationId = conversationId;
 
-        setMessages(msgData.data.messages);
-        setConversation(convoData.data.conversation);
+        // Se veio userId, tenta achar conversa existente
+        if (!targetConversationId && userIdParam) {
+          const allConvs = await apiFetch("/conversations");
+          const existing = allConvs.data.conversations.find((c: any) =>
+            c.participants.some((p: any) => p.user.id === Number(userIdParam))
+          );
+
+          if (existing) {
+            targetConversationId = existing.id.toString();
+            // Atualiza URL sem reload
+            window.history.replaceState(null, "", `/chat?id=${existing.id}`);
+          } else {
+            // Caso não exista conversa, vamos buscar dados do usuário alvo para mostrar no header
+            // e preparar para criar a conversa na primeira mensagem
+            const userRes = await apiFetch(`/users/${userIdParam}`);
+            setConversation({
+              title: userRes.user.name,
+              participants: [{ user: userRes.user }]
+            } as any);
+            setLoading(false);
+            return; // Sai, pois não tem mensagens para carregar ainda
+          }
+        }
+
+        if (targetConversationId) {
+          const [msgData, convoData] = await Promise.all([
+            apiFetch(`/messages/${targetConversationId}`),
+            apiFetch(`/conversations/${targetConversationId}`)
+          ]);
+
+          setMessages(msgData.data.messages);
+          setConversation(convoData.data.conversation);
+        }
         setLoading(false);
       } catch (e) {
-        router.push("/");
+        console.error(e);
+        // router.push("/"); // Evitar redirect forçado em erro para debug
+        setLoading(false);
       }
     }
     loadData();
-  }, [conversationId, router]);
+  }, [conversationId, userIdParam, router]);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -84,13 +115,28 @@ function ChatContent() {
   const chatName = conversation?.title || otherParticipant?.name || "Chat";
 
   async function handleSendMessage() {
-    if (!newMessage.trim() || !conversationId) return;
+    if (!newMessage.trim()) return;
 
     try {
+      let finalConversationId = conversationId;
+
+      // Se não tem ID de conversa mas tem userIdParam, cria a conversa primeiro
+      if (!finalConversationId && userIdParam) {
+        const res = await apiFetch("/conversations", {
+          method: "POST",
+          body: JSON.stringify({ participantId: Number(userIdParam) })
+        });
+        finalConversationId = res.data.conversation.id;
+        // Atualiza URL
+        router.replace(`/chat?id=${finalConversationId}`);
+      }
+
+      if (!finalConversationId) return;
+
       await apiFetch("/messages", {
         method: "POST",
         body: JSON.stringify({
-          conversationId,
+          conversationId: finalConversationId,
           content: newMessage,
           type: "text"
         })
@@ -98,7 +144,7 @@ function ChatContent() {
 
       setNewMessage("");
       // Refresh messages
-      const msgData = await apiFetch(`/messages/${conversationId}`);
+      const msgData = await apiFetch(`/messages/${finalConversationId}`);
       setMessages(msgData.data.messages);
     } catch (e) {
       alert("Erro ao enviar mensagem");
@@ -131,7 +177,7 @@ function ChatContent() {
             </svg>
           </Link>
           {otherParticipant ? (
-            <Link href={`/profile/${otherParticipant.id}`} className="flex-1 text-center hover:opacity-80">
+            <Link href={`/profile-friend/${otherParticipant.id}`} className="flex-1 text-center hover:opacity-80">
               <h2 className="text-[#0d1b19] text-lg font-bold leading-tight tracking-[-0.015em]">
                 {chatName}
               </h2>
@@ -152,14 +198,20 @@ function ChatContent() {
           return (
             <div key={msg.id} className={`flex items-end gap-3 ${isMe ? "justify-end" : ""}`}>
               {!isMe && (
-                <div
-                  className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
-                  style={{ backgroundImage: `url("${msg.sender.avatarUrl || "https://via.placeholder.com/150"}")` }}
-                ></div>
+                <Link href={`/profile-friend/${msg.senderId}`}>
+                  <div
+                    className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                    style={{ backgroundImage: `url("${msg.sender.avatarUrl || "https://via.placeholder.com/150"}")` }}
+                  ></div>
+                </Link>
               )}
               <div className={`flex flex-1 flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
                 <p className={`text-[#4c9a8d] text-[13px] font-normal ${isMe ? "text-right" : ""}`}>
-                  {isMe ? "Você" : msg.sender.name}
+                  {isMe ? "Você" : (
+                    <Link href={`/profile-friend/${msg.senderId}`} className="hover:underline">
+                      {msg.sender.name}
+                    </Link>
+                  )}
                 </p>
                 <p className={`text-base font-normal rounded-xl px-4 py-3 text-[#0d1b19] ${isMe ? "bg-[#13ecc8]" : "bg-[#e7f3f1]"}`}>
                   {msg.content}
@@ -168,7 +220,7 @@ function ChatContent() {
               {isMe && (
                 <div
                   className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
-                  style={{ backgroundImage: `url("${currentUser?.id ? "https://via.placeholder.com/150" : ""}")` }}
+                  style={{ backgroundImage: `url("${currentUser?.id ? "https://via.placeholder.com/150" : ""}")` }} // TODO: Usar avatar real do currentUser se disponível no contexto
                 ></div>
               )}
             </div>
