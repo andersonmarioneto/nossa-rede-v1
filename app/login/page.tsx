@@ -13,14 +13,14 @@ export default function Login() {
     setErr("");
 
     try {
-      const result = await apiFetch("/login", {
+      const result = await apiFetch("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password: pwd }),
       });
 
-      localStorage.setItem("token", result.token);
-      window.location.href = "/";
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      localStorage.setItem("token", result.data.token);
+      window.location.href = "/profile";
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       setErr(error?.error || error?.message || "Erro no login");
     }

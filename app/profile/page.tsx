@@ -1,7 +1,46 @@
+"use client";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api";
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  username: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
+}
 
 export default function Profile() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiFetch("/auth/me")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((data: any) => {
+        setUser(data.data.user);
+        setLoading(false);
+      })
+      .catch(() => {
+        router.push("/login");
+      });
+  }, [router]);
+
+  function handleLogout() {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token");
+    }
+    router.push("/login");
+  }
+
+  if (loading) return <div className="flex h-screen items-center justify-center">Carregando...</div>;
+  if (!user) return null;
+
   return (
     <div className="flex flex-col min-h-screen bg-[#f8fcfb] font-sans">
       {/* HEADER */}
@@ -36,14 +75,14 @@ export default function Profile() {
           <div
             className="h-30 w-30 rounded-full bg-center bg-cover"
             style={{
-              backgroundImage: `url("https://lh3.googleusercontent.com/aida-public/AB6AXuCJWLvXzvU5Q71FuImT7KOyziWYu_am2BrJQQFSWLLhmPyAEyM7o0LhmzDpN3Tk2XjI-vjdfLCnVObZPbw4GbhCQ1Zbx9SfuJ-wHhfeid4TcU3eyofr_f11HZOUIiSaBncyzMJvAsAhLe1Sa9j2sOUuHMk3__voKi-4EtdWkp3H1ksPVjDEJeUJksXr1Y7YUA7TOmHG9z5VSZyhYejcGwI9ykbvB6SmE9-KqrZrXydn7YhZDy1yLt3lFpr59KWBHJ5JIczCj__trZNG")`,
+              backgroundImage: `url("${user.avatarUrl || "https://via.placeholder.com/150"}")`,
             }}
             role="img"
-            aria-label="Foto de perfil de Mário"
+            aria-label={`Foto de perfil de ${user.name}`}
           ></div>
           <div className="mt-4 text-center">
-            <p className="text-[22px] font-bold text-[#0d1b19]">Mário</p>
-            <p className="text-base text-[#4c9a8d]">mario@gmail.com</p>
+            <p className="text-[22px] font-bold text-[#0d1b19]">{user.name}</p>
+            <p className="text-base text-[#4c9a8d]">{user.email}</p>
           </div>
         </section>
 
@@ -56,8 +95,7 @@ export default function Profile() {
             Sobre
           </h2>
           <p className="px-4 pb-3 pt-1 text-base text-[#0d1b19] leading-normal">
-            Um entusiasta da tecnologia e amante da natureza. Sempre em busca de
-            novas aventuras e aprendizados.
+            {user.bio || "Sem biografia."}
           </p>
         </section>
 
@@ -92,12 +130,12 @@ export default function Profile() {
 
         {/* SAIR */}
         <section className="mt-8">
-          <Link
-            href="/login"
-            className="flex items-center justify-between px-4 min-h-[56] hover:bg-red-50 transition-colors group"
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-between px-4 min-h-[56] hover:bg-red-50 transition-colors group"
           >
             <div className="flex items-center gap-3">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" 
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
                 className="text-red-600 size-6">
                 <path fillRule="evenodd" d="M7.5 3.75A1.5 1.5 0 0 0 6 5.25v13.5a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5V15a.75.75 0 0 1 1.5 0v3.75a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3V5.25a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3V9A.75.75 0 0 1 15 9V5.25a1.5 1.5 0 0 0-1.5-1.5h-6Zm10.72 4.72a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1 0 1.06l-3 3a.75.75 0 1 1-1.06-1.06l1.72-1.72H9a.75.75 0 0 1 0-1.5h10.94l-1.72-1.72a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
               </svg>
@@ -105,7 +143,7 @@ export default function Profile() {
                 Terminar Sessão
               </span>
             </div>
-          </Link>
+          </button>
         </section>
       </main>
     </div>

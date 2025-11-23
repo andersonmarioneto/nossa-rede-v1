@@ -18,9 +18,10 @@ export async function apiFetch(path: string, opts: RequestInit = {}) {
     const text = await res.text();
     let json;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    try { json = JSON.parse(text); } catch(e) { json = { error: text }; }
+    try { json = JSON.parse(text); } catch (e) { json = { error: text }; }
     throw json;
   }
   return res.json();
 }
+export const apiFetchAuth = apiFetch;
 export default API;

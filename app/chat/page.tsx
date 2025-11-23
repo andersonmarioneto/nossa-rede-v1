@@ -1,10 +1,111 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api";
+import { getSocket } from "@/lib/socket";
 
-export default function ChatPrivace() {
-  const [message, setMessage] = useState("");
+interface Message {
+  id: number;
+  content: string;
+  senderId: number;
+  createdAt: string;
+  sender: {
+    name: string;
+    avatarUrl: string | null;
+  };
+}
+
+interface Conversation {
+  title: string | null;
+  participants: {
+    user: {
+      id: number;
+      name: string;
+    };
+  }[];
+}
+
+function ChatContent() {
+  const searchParams = useSearchParams();
+  const conversationId = searchParams.get("id");
+  const router = useRouter();
+
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [currentUser, setCurrentUser] = useState<{ id: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [conversation, setConversation] = useState<Conversation | null>(null);
+
+  useEffect(() => {
+    if (!conversationId) return;
+
+    async function loadData() {
+      try {
+        const meData = await apiFetch("/auth/me");
+        setCurrentUser(meData.data.user);
+
+        const [msgData, convoData] = await Promise.all([
+          apiFetch(`/messages/${conversationId}`),
+          apiFetch(`/conversations/${conversationId}`)
+        ]);
+
+        setMessages(msgData.data.messages);
+        setConversation(convoData.data.conversation);
+        setLoading(false);
+      } catch (e) {
+        router.push("/");
+      }
+    }
+    loadData();
+  }, [conversationId, router]);
+
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const socket = getSocket();
+    socket.connect();
+    socket.emit("join_conversation", conversationId);
+
+    const handleNewMessage = (newMessage: Message) => {
+      setMessages((prev) => [...prev, newMessage]);
+    };
+
+    socket.on("new_message", handleNewMessage);
+
+    return () => {
+      socket.off("new_message", handleNewMessage);
+      socket.disconnect();
+    };
+  }, [conversationId]);
+
+  const otherParticipant = conversation?.participants.find(p => p.user.id !== currentUser?.id)?.user;
+  const chatName = conversation?.title || otherParticipant?.name || "Chat";
+
+  async function handleSendMessage() {
+    if (!newMessage.trim() || !conversationId) return;
+
+    try {
+      await apiFetch("/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          conversationId,
+          content: newMessage,
+          type: "text"
+        })
+      });
+
+      setNewMessage("");
+      // Refresh messages
+      const msgData = await apiFetch(`/messages/${conversationId}`);
+      setMessages(msgData.data.messages);
+    } catch (e) {
+      alert("Erro ao enviar mensagem");
+    }
+  }
+
+  if (loading) return <div className="flex h-screen items-center justify-center">Carregando...</div>;
 
   return (
     <div
@@ -29,95 +130,50 @@ export default function ChatPrivace() {
               <path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z" />
             </svg>
           </Link>
-          <Link href="/profile-friend">
+          {otherParticipant ? (
+            <Link href={`/profile/${otherParticipant.id}`} className="flex-1 text-center hover:opacity-80">
+              <h2 className="text-[#0d1b19] text-lg font-bold leading-tight tracking-[-0.015em]">
+                {chatName}
+              </h2>
+            </Link>
+          ) : (
             <h2 className="text-[#0d1b19] text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">
-              Lucas
+              {chatName}
             </h2>
-          </Link> 
-          <div className="flex w-12 items-center justify-end">
-            <button
-              className="flex items-center justify-center rounded-full h-10 w-10 bg-transparent text-[#0d1b19] p-0 transition-all duration-200 hover:bg-yellow-100"
-              aria-label="Classificar positivamente"
-              title="Classificar positivamente"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6 text-yellow-400">
-                <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clipRule="evenodd" />
-              </svg>
-            </button>
-          </div>
+          )}
+          <div className="w-10"></div>
         </div>
       </header>
 
       {/* Main messages */}
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Exemplo de mensagem recebida */}
-        <div className="flex items-end gap-3">
-          <div
-            className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
-            style={{
-              backgroundImage:
-                'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDsPROY_3q1GG14cKFLFKfCRZwSxzqJjh82aAjbjIj8lrTvvfN3YsR519NBC8H75zRYgTn3R52OZcWE0ahDu30ySVeCylANEHs8BzM6y5IurHMbDxozyDP-OazT3S0d953oSdt8QLxY1Sv9K0kxwOJvtXsGAhkzPVXq0kQUQEs1_uEreXwd3fbLNi4FRKJcWaMmU1jzAgEUvxvjENwgoR_fuZzGJwxIHLpCq0OypGQr8oyY50WzS-PcguipF7CqhlzBJ6znte0saMG3")',
-            }}
-          ></div>
-          <div className="flex flex-1 flex-col gap-1 items-start">
-            <p className="text-[#4c9a8d] text-[13px] font-normal">Lucas</p>
-            <p className="text-base font-normal rounded-xl px-4 py-3 bg-[#e7f3f1] text-[#0d1b19]">
-              Ei, tudo bem? Como foi o seu dia?
-            </p>
-          </div>
-        </div>
-
-        {/* Exemplo de mensagem enviada */}
-        <div className="flex items-end gap-3 justify-end">
-          <div className="flex flex-1 flex-col gap-1 items-end">
-            <p className="text-[#4c9a8d] text-[13px] font-normal text-right">Você</p>
-            <p className="text-base font-normal rounded-xl px-4 py-3 bg-[#13ecc8] text-[#0d1b19]">
-              Oi! Foi ótimo, obrigado por perguntar. E o seu?
-            </p>
-          </div>
-          <div
-            className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
-            style={{
-              backgroundImage:
-                'url("https://lh3.googleusercontent.com/aida-public/AB6AXuARr6DIm7bFTLJ7oVNkvbgAkUKftgbWtIIqxn3Aeb0DrEg1J0ieVdFvcqEw9G1zeIEAPm2Kn6yeoCUGpqgI6RgNw9To0-nsMI3j_5iloyJQbpra0KbPsijnTlhHOuWV8vvAEAL2z6tSddVZarU9yuOEtVWZQ6bFBKKUDkh1EtbsBIVwzgF5VUXc-nk0TyCFZlueKkep5qK3ebtVuj_3nZh1foopnVoTYnMlce0NRuA92jrRhzXDoKyKlsdjiKNxiKcubssdHJTiFwpE")',
-            }}
-          ></div>
-        </div>
-
-        {/* Exemplo de mensagem recebida */}
-        <div className="flex items-end gap-3">
-          <div
-            className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
-            style={{
-              backgroundImage:
-                'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDsPROY_3q1GG14cKFLFKfCRZwSxzqJjh82aAjbjIj8lrTvvfN3YsR519NBC8H75zRYgTn3R52OZcWE0ahDu30ySVeCylANEHs8BzM6y5IurHMbDxozyDP-OazT3S0d953oSdt8QLxY1Sv9K0kxwOJvtXsGAhkzPVXq0kQUQEs1_uEreXwd3fbLNi4FRKJcWaMmU1jzAgEUvxvjENwgoR_fuZzGJwxIHLpCq0OypGQr8oyY50WzS-PcguipF7CqhlzBJ6znte0saMG3")',
-            }}
-          ></div>
-          <div className="flex flex-1 flex-col gap-1 items-start">
-            <p className="text-[#4c9a8d] text-[13px] font-normal">Lucas</p>
-            <p className="text-base font-normal rounded-xl px-4 py-3 bg-[#e7f3f1] text-[#0d1b19]">
-              Também foi bom. Estou a trabalhar, falamos depois :)
-            </p>
-          </div>
-        </div>
-
-        {/* Exemplo de mensagem enviada */}
-        <div className="flex items-end gap-3 justify-end">
-          <div className="flex flex-1 flex-col gap-1 items-end">
-            <p className="text-[#4c9a8d] text-[13px] font-normal text-right">Você</p>
-            <p className="text-base font-normal rounded-xl px-4 py-3 bg-[#13ecc8] text-[#0d1b19]">
-              Ok, então depois nos falamos.
-            </p>
-          </div>
-          <div
-            className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
-            style={{
-              backgroundImage:
-                'url("https://lh3.googleusercontent.com/aida-public/AB6AXuARr6DIm7bFTLJ7oVNkvbgAkUKftgbWtIIqxn3Aeb0DrEg1J0ieVdFvcqEw9G1zeIEAPm2Kn6yeoCUGpqgI6RgNw9To0-nsMI3j_5iloyJQbpra0KbPsijnTlhHOuWV8vvAEAL2z6tSddVZarU9yuOEtVWZQ6bFBKKUDkh1EtbsBIVwzgF5VUXc-nk0TyCFZlueKkep5qK3ebtVuj_3nZh1foopnVoTYnMlce0NRuA92jrRhzXDoKyKlsdjiKNxiKcubssdHJTiFwpE")',
-            }}
-          ></div>
-        </div>
-
+        {messages.map((msg) => {
+          const isMe = msg.senderId === currentUser?.id;
+          return (
+            <div key={msg.id} className={`flex items-end gap-3 ${isMe ? "justify-end" : ""}`}>
+              {!isMe && (
+                <div
+                  className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
+                  style={{ backgroundImage: `url("${msg.sender.avatarUrl || "https://via.placeholder.com/150"}")` }}
+                ></div>
+              )}
+              <div className={`flex flex-1 flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
+                <p className={`text-[#4c9a8d] text-[13px] font-normal ${isMe ? "text-right" : ""}`}>
+                  {isMe ? "Você" : msg.sender.name}
+                </p>
+                <p className={`text-base font-normal rounded-xl px-4 py-3 text-[#0d1b19] ${isMe ? "bg-[#13ecc8]" : "bg-[#e7f3f1]"}`}>
+                  {msg.content}
+                </p>
+              </div>
+              {isMe && (
+                <div
+                  className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
+                  style={{ backgroundImage: `url("${currentUser?.id ? "https://via.placeholder.com/150" : ""}")` }}
+                ></div>
+              )}
+            </div>
+          );
+        })}
       </main>
 
       {/* Footer / input */}
@@ -126,11 +182,15 @@ export default function ChatPrivace() {
           <input
             type="text"
             placeholder="Escrever mensagem..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
             className="flex-1 rounded-xl px-4 py-2 text-[#0d1b19] bg-[#e7f3f1] focus:outline-none focus:ring-0 text-base"
           />
-          <button className="rounded-full bg-[#13ecc8] px-4 py-2 text-[#0d1b19] font-medium">
+          <button
+            onClick={handleSendMessage}
+            className="rounded-full bg-[#13ecc8] px-4 py-2 text-[#0d1b19] font-medium"
+          >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
               <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
             </svg>
@@ -138,5 +198,13 @@ export default function ChatPrivace() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div>Carregando chat...</div>}>
+      <ChatContent />
+    </Suspense>
   );
 }
