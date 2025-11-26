@@ -47,7 +47,7 @@ export default function Register() {
                                         value={name}
                                         onChange={(e) => setName(e.target.value)}
                                         className="form-input w-full rounded-xl text-[#0d1b19] focus:outline-none focus:ring-2 focus:ring-[#13ecc8] border border-[#cfe7e3] bg-[#f8fcfb] h-14 placeholder:text-[#4c9a8d] p-[15px] text-base font-normal leading-normal transition-all duration-200"
-                                        required
+                                        
                                     />
                                 </label>
                             </div>
