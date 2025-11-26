@@ -1,5 +1,5 @@
 // lib/api.ts
-const API = process.env.NEXT_PUBLIC_API_URL;
+const API = process.env.NEXT_PUBLIC_API_URL || "https://nossa-rede-backend.vercel.app";
 
 export async function apiFetch(path: string, opts: RequestInit = {}) {
   const url = `${API}${path}`;

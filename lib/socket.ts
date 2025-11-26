@@ -4,7 +4,7 @@ let socket: Socket;
 
 export const getSocket = () => {
     if (!socket) {
-        socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000", {
+        socket = io(process.env.NEXT_PUBLIC_API_URL || "https://nossa-rede-backend.vercel.app", {
             withCredentials: true,
             autoConnect: false,
         });
