@@ -26,5 +26,5 @@ A filosofia da plataforma segue o slogan:
 ---
 
 <img width="278" height="589" alt="Image" src="https://github.com/user-attachments/assets/c384d928-3831-45e5-9b95-06880624ea6d" />
-<img width="273" height="585" alt="Image" src="https://github.com/user-attachments/assets/e7c66138-950d-40e6-aefe-376db8af4829" />
 <img width="274" height="582" alt="Image" src="https://github.com/user-attachments/assets/b0d514dc-6cb6-4ac8-a69d-2df544e31cfe" />
+<img width="273" height="585" alt="Image" src="https://github.com/user-attachments/assets/e7c66138-950d-40e6-aefe-376db8af4829" />
